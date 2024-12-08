@@ -19,18 +19,17 @@ Table of Contents
 
 To run the project locally, follow the steps below:
 
-Clone the repository:
+- Clone the repository:
 git clone https://github.com/your-username/fake-news-detection.git
-cd fake-news-detection
-Set up a virtual environment (recommended):
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-Install required dependencies:
-pip install -r requirements.txt
-Run the Streamlit application:
-streamlit run app.py
-Open your browser and go to http://localhost:8501 to interact with the web application.
-Usage
+- cd fake-news-detection
+- Set up a virtual environment (recommended):
+  - python -m venv venv
+  - source venv/bin/activate OR On Windows: venv\Scripts\activate
+- Install required dependencies:
+- pip install -r requirements.txt
+- Run the Streamlit application:
+- streamlit run app.py
+- Open your browser and go to http://localhost:8501 to interact with the web application.
 
 Training: The model is trained on the provided news dataset. You can preprocess the data, train the model, and save the vectorizer and model using the joblib library.
 After training, the model and vectorizer are serialized and saved into two separate .pkl files (logistic_model.pkl and tfidf_vectorizer.pkl). These files can be loaded into the Streamlit app for real-time prediction.

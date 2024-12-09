@@ -5,7 +5,7 @@ from sklearn.linear_model import LogisticRegression
 import joblib
 import numpy as np
 
-with open('tfidf_vectorizer.json', 'r') as f:
+with open('./tfidf_vectorizer.json', 'r') as f:
     vectorizer_params = json.load(f)
 
 # Recreate the TfidfVectorizer using the loaded parameters

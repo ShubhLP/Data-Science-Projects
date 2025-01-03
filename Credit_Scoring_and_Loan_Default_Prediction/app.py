@@ -1,8 +1,10 @@
 import streamlit as st
 import numpy as np
 import joblib
+import os
 
-model = joblib.load('/Users/shubham/Documents/Rutgers University/MS in Data Science/Projects/Data-Science-Projects/Credit_Scoring_and_Loan_Default_Prediction/logistic_model.pkl')
+base_dir = os.path.dirname(os.path.abspath(__file__))
+model = os.path.join(base_dir, 'logistic_model.pkl')
 
 risks = {0: 'Low', 1: 'Medium', 2: 'High'}
 

@@ -26,7 +26,15 @@ if st.button("Predict Risk"):
             input_features = np.array([[credit_per_month_risk, credit_util_score, housing_risk, savings_risk]])
             predicted_risk = model.predict(input_features)
             predicted_risk_mapped = risks[predicted_risk[0]]
+            
             st.success(f"Predicted Risk Category: {predicted_risk[0]} - {predicted_risk_mapped}")
+            
+            if predicted_risk[0] == 2:
+                st.error("Loan Defaulter")
+            elif predicted_risk[0] == 1:
+                st.warning("Potential Loan Defaulter")
+            else:
+                st.info("Timely Payer")
     
     except Exception as e:
         st.error(f"An error occurred while loading the model or making predictions: {e}")

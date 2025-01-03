@@ -4,11 +4,13 @@ import joblib
 import os
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-model = os.path.join(base_dir, 'logistic_model.pkl')
+model_path = os.path.join(base_dir, 'logistic_model.pkl')
+
+model = joblib.load(model_path)
 
 risks = {0: 'Low', 1: 'Medium', 2: 'High'}
 
-st.title("Customer Risk Prediction App")
+st.title("Customer Credit and Loan Risk Prediction App")
 st.write("Classify customers into risk categories based on their profile.")
 
 credit_per_month_risk = st.slider("Credit Per Month Risk (0: Low, 1: Medium, 2: High)", 0, 2, 1)

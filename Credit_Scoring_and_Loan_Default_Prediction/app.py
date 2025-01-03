@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np
 import joblib
 
-model = joblib.load('logistic_model.pkl')
+model = joblib.load('/Users/shubham/Documents/Rutgers University/MS in Data Science/Projects/Data-Science-Projects/Credit_Scoring_and_Loan_Default_Prediction/logistic_model.pkl')
 
 risks = {0: 'Low', 1: 'Medium', 2: 'High'}
 

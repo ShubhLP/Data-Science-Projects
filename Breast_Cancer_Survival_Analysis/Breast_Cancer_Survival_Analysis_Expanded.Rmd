@@ -1,0 +1,835 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(flexsurv)
+library(survival)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(survminer)
+library(corrplot)
+library(GGally)
+library(fitdistrplus)
+library(forestmodel)
+```
+
+```{r}
+breast_cancer_data <- read_excel("gbcs.xls")
+View(breast_cancer_data)
+```
+
+```{r}
+colnames(breast_cancer_data)
+```
+
+```{r}
+cols <- c("menopause", "hormone", "size", "grade")
+
+for (col in cols) {
+  unique_values <- unique(breast_cancer_data[, col])
+  print(paste("Unique values in col:", col))
+  print(unique_values)
+}
+```
+
+
+```{r}
+X <- breast_cancer_data %>% 
+  mutate(
+    tumor_grade = factor(grade, levels = c("1", "2", "3"), ordered = TRUE),
+    received_hormone_therapy = as.factor(hormone),
+    menopause_cat = as.factor(menopause),
+    age_group = factor(ifelse(age <= 30, 1, ifelse(age <= 50, 2, 3))),
+    survival_time = survtime,
+    event_status = censdead
+  ) %>% 
+  dplyr::select(diagdateb, recdate, deathdate, age, age_group, received_hormone_therapy, menopause_cat, size, tumor_grade, nodes, prog_recp, estrg_recp, rectime, censrec, survival_time, event_status)
+
+View(X)
+```
+
+```{r}
+str(X)
+table(X$received_hormone_therapy)
+table(X$tumor_grade)
+table(X$event_status)
+colSums(is.na(X))
+```
+
+
+```{r}
+summary(X)
+```
+```{r}
+numeric_cols <- sapply(X, is.numeric)
+sapply(X[, numeric_cols], sd, na.rm = TRUE)
+```
+
+
+```{r}
+colnames(X)
+```
+
+```{r}
+ggplot(X, aes(x = age)) + geom_histogram(bins = 30) + theme_minimal() + ggtitle("Histogram for Age")
+```
+
+```{r}
+boxplot(X$age, main = "Boxplot of Age")
+```
+
+```{r}
+plot(density(X$age), lwd = 2, col = "red", main = "Density Curve for Age")
+```
+
+
+```{r}
+ggplot(X, aes(x = size)) + geom_histogram(bins = 30) + theme_minimal() + ggtitle("Histogram for Tumor Size")
+```
+
+```{r}
+boxplot(X$size, main = "Boxplot for Tumor Size")
+```
+
+```{r}
+plot(density(X$size), lwd = 2, col = "red", main = "Density Curve for Tumor Size")
+```
+
+
+```{r}
+ggplot(X, aes(x = nodes)) + geom_histogram(bins = 25) + theme_minimal() + ggtitle("Histogram for Lymph Nodes")
+```
+```{r}
+boxplot(X$nodes, main = "Boxplot for Number of Lymph Nodes")
+```
+
+```{r}
+plot(density(X$nodes), lwd = 2, col = "red", main = "Density Curve for Lymph Nodes")
+```
+
+
+```{r}
+ggplot(X, aes(x = prog_recp)) + geom_histogram(bins = 30) + theme_minimal() + ggtitle("Histogram for Progesterone Receptor")
+```
+```{r}
+boxplot(X$prog_recp, main = "Boxplot for Progesterone Receptor")
+```
+```{r}
+plot(density(X$prog_recp), lwd = 2, col = "red", main = "Density Curve for Progesterone Receptor")
+```
+
+
+```{r}
+ggplot(X, aes(x = estrg_recp)) + geom_histogram(bins = 30) + theme_minimal() + ggtitle("Histogram for Estrogen Receptor")
+```
+
+
+```{r}
+boxplot(X$estrg_recp, main = "Boxplot for Estrogen Receptor")
+```
+
+```{r}
+plot(density(X$estrg_recp), lwd = 2, col = "red", main = "Density Curve for Estrogen Receptor")
+```
+
+
+```{r}
+ggplot(X, aes(x = rectime)) + geom_histogram(bins = 30) + theme_minimal() + ggtitle("Histogram for Rectime")
+```
+```{r}
+boxplot(X$rectime, main = "Boxplot for Rectime")
+```
+
+```{r}
+ggplot(X, aes(x = survival_time)) + geom_histogram(bins = 30) + theme_minimal() + ggtitle("Histogram for Survival Time")
+```
+
+```{r}
+plot(density(X$survival_time), lwd = 2, col = "red", main = "Density Curve for Survival time")
+```
+
+
+```{r}
+boxplot(X$survival_time, main = "Boxplot for Survival Time")
+```
+
+```{r}
+pairs(X[, c("size", "nodes", "prog_recp", "estrg_recp")])
+```
+
+
+```{r}
+pairs(X[, c("size", "nodes", "prog_recp", "estrg_recp", "rectime", "survival_time")])
+```
+
+
+```{r}
+pairs(X_copy[, c("size", "nodes", "prog_recp", "estrg_recp", "rectime", "survival_time")])
+```
+
+
+
+```{r}
+ggpairs(X_copy[, c("age", "size", "nodes", "prog_recp", "estrg_recp")])
+```
+
+```{r}
+ggpairs(X_copy[, c("size", "nodes", "prog_recp", "estrg_recp", "rectime", "survival_time")])
+```
+
+```{r}
+ggplot(X, aes(sample = age)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+
+```{r}
+descdist(X$age, discrete = FALSE)
+```
+
+
+```{r}
+ggplot(X, aes(sample = size)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal() + 
+  ggtitle("QQ Plot of Tumor Sizes")
+```
+```{r}
+descdist(X$size, discrete = FALSE)
+```
+
+
+```{r}
+ggplot(X, aes(sample = nodes)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+```{r}
+descdist(X$nodes, discrete = FALSE)
+```
+
+
+```{r}
+ggplot(X, aes(sample = prog_recp)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+```{r}
+descdist(X$prog_recp, discrete = FALSE)
+```
+
+
+```{r}
+ggplot(X, aes(sample = estrg_recp)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+```{r}
+descdist(X$estrg_recp, discrete = FALSE)
+```
+```{r}
+ggplot(X, aes(sample = rectime)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+```{r}
+descdist(X$rectime, discrete = FALSE)
+```
+```{r}
+plot(density(X$rectime), lwd = 2, col = 'red', main = "Density Curve for Rectime")
+```
+
+
+```{r}
+ggplot(X, aes(sample = survival_time)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+
+```{r}
+plot(density(X$survival_time), lwd = 2, col = 'red', main = "Density Curve for Survival Time")
+```
+
+
+```{r}
+descdist(X$survival_time, discrete = FALSE)
+```
+
+```{r}
+X$sqrt_survival <- sqrt(X$survival_time)
+ggplot(X, aes(sample = sqrt_survival)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal() + ggtitle("QQ-Plot after Square-Root Transformation of Survival Time")
+```
+
+
+```{r}
+X$log_size <- log(X$size)
+ggplot(X, aes(sample = log_size)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal() + ggtitle("QQ-Plot after Log Transformation of Tumor Size")
+```
+
+```{r}
+descdist(X$log_size, discrete = FALSE)
+```
+
+
+```{r}
+X$log_prog_recp <- log1p(X$prog_recp)
+ggplot(X, aes(sample = log_prog_recp)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal() + ggtitle("QQ-Plot after Log Transformation for Progesterone Reception")
+```
+
+```{r}
+X$log_estrg_recp <- log1p(X$estrg_recp)
+ggplot(X, aes(sample = log_estrg_recp)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal() + ggtitle("QQ-Plot after Log Transformation for Estrogen Receptor")
+```
+
+
+```{r}
+X_copy <- X
+cols_to_std <- c("size", "nodes", "prog_recp", "estrg_recp")
+
+for (col in cols_to_std) {
+  X_copy[, col] <- scale(X_copy[, col])
+}
+
+View(X_copy)
+```
+
+```{r}
+str(X_copy)
+```
+```{r}
+ggplot(X, aes(sample = survival_time)) + stat_qq() + stat_qq_line(color = "red") + theme_minimal()
+```
+
+```{r}
+descdist(X$survival_time, discrete = FALSE)
+```
+
+
+```{r}
+summary(breast_cancer_data$survtime)
+```
+
+
+### Kaplan-Meier non-parametric analysis
+```{r}
+# null model
+km_curve <- survfit(Surv(survival_time, event_status) ~ 1, data = X_copy)
+km_curve
+```
+```{r}
+summary(km_curve)
+```
+
+
+```{r}
+ggsurvplot(km_curve)
+```
+```{r}
+# survdiff(Surv(survival_time, event_status) ~ 1, data = X_copy)
+```
+```{r}
+plot(km_curve, main = "KM Curve")
+```
+```{r}
+km_curve_2 <- survfit(Surv(survival_time, event_status) ~ 1, data = X)
+plot(km_curve_2, main = "KM Curve")
+```
+
+
+
+```{r}
+km_curve_age <- survfit(Surv(survival_time, event_status) ~ age_group, data = X)
+ggsurvplot(km_curve_age, title = "Kaplan-Meier Curve by age group")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ age_group, data = X)
+```
+```{r}
+pairwise_survdiff(Surv(survival_time, event_status) ~ age_group, data = X_copy, p.adjust.method = "bonferroni")
+```
+
+
+```{r}
+km_curve_tumor <- survfit(Surv(survival_time, event_status) ~ tumor_grade, data = X_copy)
+ggsurvplot(km_curve_tumor, title = "Kaplan-Meier Curve by Tumor")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ tumor_grade, data = X_copy)
+```
+```{r}
+pairwise_survdiff(Surv(survival_time, event_status) ~ tumor_grade, data = X_copy, p.adjust.method = "bonferroni")
+```
+
+
+```{r}
+km_curve_hormone <- survfit(Surv(survival_time, event_status) ~ received_hormone_therapy, data = X_copy)
+ggsurvplot(km_curve_hormone, title = "Kaplan-Meier Curve by hormone")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ received_hormone_therapy, data = X_copy)
+```
+
+```{r}
+pairwise_survdiff(Surv(survival_time, event_status) ~ received_hormone_therapy, data = X_copy, p.adjust.method = "bonferroni")
+```
+
+
+```{r}
+km_curve_menopause <- survfit(Surv(survival_time, event_status) ~ menopause_cat, data = X_copy)
+ggsurvplot(km_curve_menopause, title = "Kaplan-Meier Survival Curve by Menopausal Status")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ menopause_cat, data = X_copy)
+```
+
+```{r}
+pairwise_survdiff(Surv(survival_time, event_status) ~ menopause_cat, data = X_copy, p.adjust.method = "bonferroni")
+```
+
+
+```{r}
+km_curve_nodes <- survfit(Surv(survival_time, event_status) ~ nodes, data = X_copy)
+ggsurvplot(km_curve_nodes, title = "Kaplan-Meier Survival Curve by Number of Positive Lymph Nodes")
+
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ nodes, data = X_copy)
+```
+
+
+```{r}
+km_curve_hormone_grade <- survfit(Surv(survival_time, event_status) ~ received_hormone_therapy + tumor_grade, data = X_copy)
+ggsurvplot(km_curve_hormone_grade, title = "Kaplan-Meier Survival Curve by Hormone Therapy and Tumor Grade")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ received_hormone_therapy + tumor_grade, data = X_copy)
+```
+
+
+```{r}
+km_curve_menopause_grade <- survfit(Surv(survival_time, event_status) ~ menopause_cat + tumor_grade, data = X_copy)
+ggsurvplot(km_curve_menopause_grade,title = "Kaplan-Meier Survival Curve by Menopause and Tumor Grade")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ menopause_cat + tumor_grade, data = X_copy)
+```
+```{r}
+pairwise_survdiff(Surv(survival_time, event_status) ~ menopause_cat + tumor_grade, data = X_copy, p.adjust.method = "bonferroni")
+```
+
+
+```{r}
+km_curve_age_grade <- survfit(Surv(survival_time, event_status) ~ age_group + tumor_grade, data = X_copy)
+ggsurvplot(km_curve_age_grade,title = "Kaplan-Meier Survival Curve by Age Group and Tumor Grade")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ age_group + tumor_grade, data = X_copy)
+```
+
+
+```{r}
+km_curve_menopause_age <- survfit(Surv(survival_time, event_status) ~ menopause_cat + age_group, data = X_copy)
+ggsurvplot(km_curve_menopause_age,title = "Kaplan-Meier Survival Curve by Menopause and Age Group")
+```
+
+```{r}
+survdiff(Surv(survival_time, event_status) ~ menopause_cat + age_group, data = X_copy)
+```
+
+```{r}
+pairwise_survdiff(Surv(survival_time, event_status) ~ menopause_cat + age_group, data = X_copy, p.adjust.method = "bonferroni")
+```
+
+
+
+
+
+
+
+### Cox Proportional Hazards Model
+```{r}
+cox.mod <- coxph(Surv(survival_time, event_status) ~ age_group + tumor_grade + received_hormone_therapy + menopause_cat + size + nodes + prog_recp + estrg_recp, data = X_copy)
+summary(cox.mod)
+```
+
+
+```{r}
+cox.mod.rm <- coxph(Surv(survival_time, event_status) ~ age_group + tumor_grade + received_hormone_therapy + size + nodes + prog_recp, data = X_copy)
+summary(cox.mod.rm)
+```
+
+```{r}
+cox_transformed <- coxph(Surv(survival_time, event_status) ~ age + received_hormone_therapy + menopause_cat + size + tumor_grade + nodes + log_prog_recp + log_estrg_recp, data = X)
+
+summary(cox_transformed)
+```
+
+```{r}
+cox_transformed.rm <- coxph(Surv(survival_time, event_status) ~  size + tumor_grade + nodes + log_prog_recp, data = X)
+summary(cox_transformed.rm)
+```
+
+```{r}
+forest_model(cox_transformed.rm)
+```
+
+```{r}
+test_data <- data.frame(
+  size = c(2.5, 3),
+  tumor_grade = as.factor(c(1, 2)),
+  nodes = c(0, 3),
+  log_prog_recp = c(0.5, 1)
+)
+
+surv_fit <- survfit(cox_transformed.rm, newdata = test_data)
+
+summary(surv_fit, times = (c(100, 200, 300, 400, 500)))
+```
+# Schoenfeld's Residuals
+```{r}
+test.zph <- cox.zph(cox_transformed.rm)
+zph_plots <- ggcoxzph(test.zph)
+for (i in 1:length(zph_plots)) {
+  zph_plots[[i]] <- zph_plots[[i]] + theme_bw() + theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+  print(zph_plots[[i]])
+}
+```
+
+
+```{r}
+cox.mod_interaction <- coxph(Surv(survival_time, event_status) ~ 
+                               size * tumor_grade + 
+                               age_group + 
+                               received_hormone_therapy + 
+                               menopause + 
+                               nodes + 
+                               prog_recp + 
+                               estrg_recp, 
+                             data = X_copy)
+
+summary(cox.mod_interaction)
+```
+
+```{r}
+cox_model_interaction <- coxph(Surv(survival_time, event_status) ~ menopause_cat + tumor_grade + menopause_cat:tumor_grade, data = X_copy)
+
+summary(cox_model_interaction)
+```
+
+```{r}
+forest_model(cox_model_interaction)
+```
+
+
+```{r}
+
+X_copy$predicted_survival <- na.omit(predict(cox.mod_interaction, type = "survival"))
+
+survival_obj <- Surv(time = X_copy$survival_time, event = X_copy$event_status)
+
+ggsurvplot(survfit(survival_obj ~ tumor_grade, data = X_copy),
+           data = X_copy,
+           pval = TRUE,
+           conf.int = TRUE,
+           risk.table = TRUE,
+           title = "Survival Curves by Tumor Grade")
+```
+
+
+```{r}
+ggsurvplot(survfit(cox.mod), data = X_copy, pval = TRUE, conf.int = TRUE, risk.table = TRUE, title = "Cox")
+```
+```{r}
+cox.mod2 <- coxph(Surv(survival_time, event_status) ~ age_group + size + tumor_grade + prog_recp + nodes, data = X, method = "breslow")
+summary(cox.mod2)
+```
+
+```{r}
+ggsurvplot(survfit(cox.mod2), data = X, pval = TRUE, conf.int = TRUE, risk.table = TRUE, title = "Cox Proportional Hazards Survival Curves")
+```
+
+
+```{r}
+cox.mod.simple1 <- coxph(Surv(survival_time, event_status) ~ received_hormone_therapy, data = X)
+summary(cox.mod.simple1)
+```
+```{r}
+ggsurvplot(survfit(cox.mod.simple1), data = X, pval = TRUE, conf.int = TRUE, risk.table = TRUE)
+```
+
+
+```{r}
+cox.mod.simple2 <- coxph(Surv(survival_time, event_status) ~ age_group, data = X)
+summary(cox.mod.simple2)
+```
+```{r}
+ggsurvplot(survfit(cox.mod.simple2), data = X, pval = TRUE, conf.int = TRUE, risk.table = TRUE)
+```
+
+```{r}
+
+```
+
+
+```{r}
+corr_matrix <- cor(X_copy[, c("size", "nodes", "prog_recp", "estrg_recp")])
+print(corr_matrix)
+```
+
+```{r}
+corrplot(corr_matrix)
+```
+
+```{r}
+corrplot(corr_matrix, method = "color")
+```
+
+
+```{r}
+corr_matrix <- cor(X[, c("size", "nodes", "log_prog_recp", "log_estrg_recp")])
+print(corr_matrix)
+```
+
+```{r}
+corrplot(corr_matrix)
+```
+
+
+### Exponential Model
+# without categorical variable
+```{r}
+exp_model_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp, data = X_copy, dist = "exp")
+
+exp_model <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp, data = X_copy, dist = "exp")
+
+summary(exp_model_fs)
+summary(exp_model)
+```
+```{r}
+exp_rm_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp, data = X_copy, dist = "exp")
+
+exp_rm <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp, data = X_copy, dist = "exp")
+
+summary(exp_rm)
+```
+
+```{r}
+plot(exp_model_fs, main = "Original Exponential Survival Model w/o Categorical Variables", xlab = "Time", ylab = "Survival Probability")
+```
+
+```{r}
+plot(exp_rm_fs, main = "Updated Exponential Survival Model w/o Categorical Variables", xlab = "Time", ylab = "Survival Probability")
+```
+
+
+# with categorical variables
+```{r}
+exp_model_cat_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp + age_group + tumor_grade + received_hormone_therapy + menopause, data = X_copy, dist = "exp")
+
+exp_model_cat <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp + age_group + tumor_grade + received_hormone_therapy + menopause, data = X_copy, dist = "exp")
+
+summary(exp_model_cat_fs)
+summary(exp_model_cat)
+```
+
+```{r}
+plot(exp_model_cat_fs, main = "Original Exponential Model with Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+
+```{r}
+exp_model_cat_rm_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + tumor_grade + prog_recp + age_group, data = X_copy, dist = "exp")
+
+exp_model_cat_rm <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + age_group + tumor_grade, data = X_copy, dist = "exp")
+
+summary(exp_model_cat_rm_fs)
+summary(exp_model_cat_rm)
+```
+
+
+```{r}
+plot(exp_model_cat_rm_fs, main = "Updated Exponential Model with Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+
+### Weibull model
+# without categorical variables
+```{r}
+weibull_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp, data = X_copy, dist = "weibull")
+
+weibull <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp, data = X_copy, dist = "weibull")
+
+summary(weibull_fs)
+summary(weibull)
+```
+
+```{r}
+weibull_rm_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp, data = X_copy, dist = "weibull")
+
+weibull_rm <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp, data = X_copy, dist = "weibull")
+
+summary(weibull_rm_fs)
+summary(weibull_rm)
+```
+
+
+```{r}
+plot(weibull_fs, main = "Original Weibull w/o Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+```{r}
+plot(weibull_rm_fs, main = "Updated Weibull w/o Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+
+# with categorical variables
+```{r}
+weibull_cat_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp + age_group + tumor_grade + received_hormone_therapy + menopause, data = X_copy, dist = "weibull")
+
+weibull_cat <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp + age_group + tumor_grade + received_hormone_therapy, data = X_copy, dist = "weibull")
+
+summary(weibull_cat_fs)
+summary(weibull_cat)
+```
+
+```{r}
+plot(weibull_cat_fs, main = "Original Weibull with Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+```{r}
+weibull_cat_rm_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + age_group + tumor_grade + received_hormone_therapy, data = X_copy, dist = "weibull")
+
+weibull_cat_rm <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + age_group + tumor_grade + received_hormone_therapy, data = X_copy, dist = "weibull")
+
+summary(weibull_cat_rm_fs)
+summary(weibull_cat_rm)
+```
+
+```{r}
+plot(weibull_cat_rm_fs, main = "Updated Weibull with Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+
+### Log-normal distribution
+# without categorical variables
+```{r}
+lognormal_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp, data = X_copy, dist = "lognormal")
+
+lognormal <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp, data = X_copy, dist = "lognormal")
+
+summary(lognormal_fs)
+summary(lognormal)
+```
+
+```{r}
+plot(lognormal_fs, main = "Original Log-normal w/o Categorical Variables", xlab = "Time", ylab = "Survival Probabilities")
+```
+
+```{r}
+lognormal_rm_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp, data = X_copy, dist = "lognormal")
+
+lognormal_rm <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp, data = X_copy, dist = "lognormal")
+
+summary(lognormal_rm_fs)
+summary(lognormal_rm)
+```
+
+```{r}
+plot(lognormal_rm_fs, xlab = "Time", ylab = "Survival Probabilities", main = "Updated Lognormal without Categorical Variables")
+```
+
+
+# with categorical variable
+```{r}
+lognormal_cat_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp + age_group + tumor_grade + received_hormone_therapy + menopause_cat, data = X_copy, dist = "lognormal")
+
+lognormal_cat <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + estrg_recp + age_group + tumor_grade + received_hormone_therapy + menopause, data = X_copy, dist = "lognormal")
+
+summary(lognormal_cat_fs)
+summary(lognormal_cat)
+```
+
+```{r}
+plot(lognormal_cat_fs, xlab = "Time", ylab = "Survival Probabilities", main = "Original Lognormal with Categorical Variables")
+```
+
+
+```{r}
+lognormal_cat_rm_fs <- flexsurvreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + age_group + tumor_grade + received_hormone_therapy, data = X_copy, dist = "lognormal")
+
+lognormal_cat_rm <- survreg(Surv(survival_time, event_status) ~ size + nodes + prog_recp + age_group + tumor_grade + received_hormone_therapy, data = X_copy, dist = "lognormal")
+
+summary(lognormal_cat_rm_fs)
+summary(lognormal_cat_rm)
+```
+
+```{r}
+plot(lognormal_cat_rm_fs, xlab = "Time", ylab = "Survival Probabilities", main = "Updated Lognormal with Categorical Variables")
+```
+
+### Comparing loglikelihoods of the models
+# loglikelihoods without categories
+```{r}
+cat("Log-likelihood for Exponential with Categories:", logLik(exp_rm_fs), "\n",
+    "Log-likelihood for Weibull with Categories:", logLik(weibull_rm_fs), "\n",
+    "Log-likelihood for Log-normal with Categories:", logLik(lognormal_rm_fs), "\n")
+```
+
+# loglikelihoods with categories
+```{r}
+cat("Log-likelihood for Exponential with Categories:", logLik(exp_model_cat_rm_fs), "\n",
+    "Log-likelihood for Weibull with Categories:", logLik(weibull_cat_rm_fs), "\n",
+    "Log-likelihood for Log-normal with Categories:", logLik(lognormal_cat_rm_fs), "\n")
+```
+
+### AIC and BIC
+# Akaike Information Criterion without Categories
+```{r}
+cat("AIC for Exponential without Categories:", AIC(exp_rm_fs), "\n",
+    "AIC for Weibull without Categories:", AIC(weibull_rm_fs), "\n",
+    "AIC for Log-normal without Categories:", AIC(lognormal_rm_fs), "\n")
+```
+
+# Bayesian Information Criterion without Categories
+```{r}
+cat("BIC for Exponential without Categories:", BIC(exp_rm_fs), "\n",
+    "BIC for Weibull without Categories:", BIC(weibull_rm_fs), "\n",
+    "BIC for Log-normal without Categories:", BIC(lognormal_rm_fs), "\n")
+```
+
+# Akaike Information Criterion with Categories
+```{r}
+cat("AIC for Exponential with Categories:", AIC(exp_model_cat_rm_fs), "\n",
+    "AIC for Weibull with Categories:", AIC(weibull_cat_rm_fs), "\n",
+    "AIC for Log-normal with Categories:", AIC(lognormal_cat_rm_fs), "\n")
+```
+
+# Bayesian Information Criterion with Categories
+```{r}
+cat("BIC for Exponential with Categories:", BIC(exp_model_cat_rm_fs), "\n",
+    "BIC for Weibull with Categories:", BIC(weibull_cat_rm_fs), "\n",
+    "BIC for Log-normal with Categories:", BIC(lognormal_cat_rm_fs), "\n")
+```
+
+### Concordance index (C-index)
+```{r}
+exp_pred <- predict(exp_model_cat_rm_fs)$.pred_time
+weibull_pred <- predict(weibull_cat_rm_fs)$.pred_time
+lognormal_pred <- predict(lognormal_cat_rm_fs)$.pred_time
+```
+
+# C-index for exponential model
+```{r}
+concordance(Surv(X_copy$survival_time, X_copy$event_status) ~ exp_pred)
+```
+
+# C-index for weibull model
+```{r}
+concordance(Surv(X_copy$survival_time, X_copy$event_status) ~ weibull_pred)
+```
+# C-index for lognormal model
+```{r}
+concordance(Surv(X_copy$survival_time, X_copy$event_status) ~ lognormal_pred)
+```
+
